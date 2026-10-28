@@ -6,6 +6,8 @@ from unittest.mock import patch
 from amf.cli import main
 from amf.console import AMFConsole
 from amf.core import get_module, list_modules
+from amf.modules.http_cookies import HTTPCookiesModule
+from amf.reporting import to_json
 from amf.modules.http_headers import HTTPHeadersModule
 from amf.safety import SafetyError, SafetyPolicy, load_allowlist
 
@@ -14,7 +16,19 @@ class FrameworkTests(unittest.TestCase):
     def test_builtin_module_is_registered(self):
         names = [module.name for module in list_modules()]
         self.assertIn("scanner/http_headers", names)
+        self.assertIn("scanner/http_cookies", names)
         self.assertEqual(get_module("scanner/http_headers").name, "scanner/http_headers")
+
+    def test_finding_report_contains_type_severity_and_languages(self):
+        from amf.core import Finding, RunResult
+
+        result = RunResult("test", "https://lab.local", "execute", "now", [Finding("test", "Missing header", "HIGH", "missing", "fix", finding_type="http-header", title_ar="رأس مفقود", title_en="Missing header")])
+        payload = json.loads(to_json([result], "both"))
+        finding = payload[0]["findings"][0]
+        self.assertEqual(finding["type"], "http-header")
+        self.assertEqual(finding["severity"], "high")
+        self.assertEqual(finding["title_ar"], "رأس مفقود")
+        self.assertEqual(finding["title_en"], "Missing header")
 
     def test_allowlist_rejects_unknown_target(self):
         policy = SafetyPolicy(load_allowlist(["https://lab.local"]))
@@ -53,6 +67,21 @@ class FrameworkTests(unittest.TestCase):
         titles = {finding.title for finding in findings}
         self.assertIn("Missing HSTS header", titles)
         self.assertIn("Server header exposed", titles)
+
+    def test_cookie_module_reports_cookie_attributes(self):
+        class Response:
+            headers = {"Set-Cookie": "session=abc"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+        with patch("amf.modules.http_cookies.urlopen", return_value=Response()):
+            findings = HTTPCookiesModule().run("https://lab.local")
+        self.assertEqual(len(findings), 3)
+        self.assertTrue(all(item.finding_type == "cookie-security" for item in findings))
 
     def test_console_check_is_dry_run(self):
         output = StringIO()

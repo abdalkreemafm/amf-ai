@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import __version__
 from .core import RunResult, get_module, list_modules, utc_now
-from .reporting import to_json
+from .reporting import render
 from .safety import SafetyError, SafetyPolicy, load_allowlist
 from .console import start_console
 from . import modules  # noqa: F401 - registers built-in modules
@@ -28,6 +28,8 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--execute", action="store_true", help="enable the network request after allowlist validation")
     check.add_argument("--timeout", type=float, default=5.0)
     check.add_argument("--report", type=Path)
+    check.add_argument("--format", choices=("json", "markdown", "html"), default="json")
+    check.add_argument("--language", choices=("ar", "en", "both"), default="both")
     sub.add_parser("doctor", help="show runtime and safety defaults")
     sub.add_parser("console", help="open the interactive Termux console")
     return parser
@@ -51,7 +53,7 @@ def run_check(args: argparse.Namespace) -> int:
         result.findings = module.run(target, timeout=policy.timeout)
         print(f"completed: {len(result.findings)} finding(s)")
 
-    payload = to_json([result])
+    payload = render([result], args.format, args.language)
     if args.report:
         args.report.write_text(payload + "\n", encoding="utf-8")
         print(f"report: {args.report}")

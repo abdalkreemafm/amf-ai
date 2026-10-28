@@ -13,6 +13,35 @@ class Finding:
     description: str
     remediation: str
     evidence: dict[str, Any] = field(default_factory=dict)
+    finding_type: str = "security-misconfiguration"
+    confidence: str = "high"
+    title_ar: str = ""
+    title_en: str = ""
+    description_ar: str = ""
+    description_en: str = ""
+    impact_ar: str = ""
+    impact_en: str = ""
+    remediation_ar: str = ""
+    remediation_en: str = ""
+
+    def to_dict(self, language: str = "both") -> dict[str, Any]:
+        data = asdict(self)
+        data["type"] = data.pop("finding_type")
+        data["severity"] = self.severity.lower()
+        data["confidence"] = self.confidence.lower()
+        data["title_ar"] = self.title_ar or self.title
+        data["title_en"] = self.title_en or self.title
+        data["description_ar"] = self.description_ar or self.description
+        data["description_en"] = self.description_en or self.description
+        data["remediation_ar"] = self.remediation_ar or self.remediation
+        data["remediation_en"] = self.remediation_en or self.remediation
+        if language == "ar":
+            for key in ("title", "description", "remediation"):
+                data[key] = data[f"{key}_ar"]
+        elif language == "en":
+            for key in ("title", "description", "remediation"):
+                data[key] = data[f"{key}_en"]
+        return data
 
 
 @dataclass
@@ -24,13 +53,13 @@ class RunResult:
     findings: list[Finding] = field(default_factory=list)
     error: str | None = None
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, language: str = "both") -> dict[str, Any]:
         return {
             "module": self.module,
             "target": self.target,
             "mode": self.mode,
             "started_at": self.started_at,
-            "findings": [asdict(item) for item in self.findings],
+            "findings": [item.to_dict(language) for item in self.findings],
             "error": self.error,
         }
 

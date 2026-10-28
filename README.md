@@ -9,6 +9,8 @@
 - وضع `dry-run` افتراضيًا؛ لا يحدث اتصال شبكي ما لم تستخدم `--execute`.
 - allowlist إلزامية للهدف قبل السماح بأي اتصال.
 - تقارير JSON.
+- تقرير منظم لكل اكتشاف يتضمن النوع والخطورة والثقة والدليل والأثر والإصلاح بالعربية والإنجليزية.
+- تصدير JSON وMarkdown وHTML عبر `--format` و`--language`.
 - مكتبة Python القياسية فقط.
 
 ## التثبيت
@@ -32,8 +34,22 @@ amf check scanner/http_headers https://lab.local --allow https://lab.local
 # تنفيذ فحص HEAD محدود على هدف مصرّح به صراحة
 amf check scanner/http_headers https://lab.local \
   --allow https://lab.local --execute --timeout 5 \
-  --report report.json
+  --report report.json --format json --language both
 ```
+
+مثال تقرير Markdown أو HTML:
+
+```bash
+amf check scanner/http_cookies https://lab.local \
+  --allow https://lab.local --execute \
+  --report report.md --format markdown --language both
+
+amf check scanner/http_headers https://lab.local \
+  --allow https://lab.local --execute \
+  --report report.html --format html --language both
+```
+
+كل finding في التقرير يحتوي على `type` و`severity` و`confidence` و`evidence`، بالإضافة إلى العنوان والوصف والإصلاح بالعربية والإنجليزية.
 
 ## التشغيل على Termux
 
