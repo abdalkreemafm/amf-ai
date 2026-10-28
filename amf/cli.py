@@ -14,6 +14,21 @@ from .safety import SafetyError, SafetyPolicy, load_allowlist
 from .console import start_console
 from . import modules  # noqa: F401 - registers built-in modules
 
+SEVERITY_WEIGHTS = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+
+
+def evaluate_ci_fail_on(results: list[RunResult], threshold: str | None) -> int:
+    if not threshold:
+        return 0
+    limit = SEVERITY_WEIGHTS[threshold]
+    matches = [(result.module, finding.title, finding.severity) for result in results for finding in result.findings if SEVERITY_WEIGHTS.get(finding.severity.lower(), 0) >= limit]
+    if not matches:
+        return 0
+    print(f"[CI/CD] {len(matches)} finding(s) meet --fail-on {threshold}", file=sys.stderr)
+    for module, title, severity in matches[:5]:
+        print(f"- [{severity.upper()}] {module}: {title}", file=sys.stderr)
+    return 3
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="amf", description="AMF defensive security assessment framework")
@@ -33,17 +48,19 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--execute", action="store_true", help="enable the network request after allowlist validation")
     check.add_argument("--timeout", type=float, default=5.0)
     check.add_argument("--report", type=Path)
-    check.add_argument("--format", choices=("json", "markdown", "html"), default="json")
+    check.add_argument("--format", choices=("json", "markdown", "html", "sarif"), default="json")
     check.add_argument("--language", choices=("ar", "en", "both"), default="both")
+    check.add_argument("--fail-on", choices=tuple(SEVERITY_WEIGHTS), help="exit 3 when a finding reaches this severity")
     full = sub.add_parser("full", help="run all registered non-exploitative checks")
     full.add_argument("target")
     full.add_argument("--allow", action="append", default=[])
     full.add_argument("--execute", action="store_true")
     full.add_argument("--timeout", type=float, default=5.0)
     full.add_argument("--report", type=Path)
-    full.add_argument("--format", choices=("json", "markdown", "html"), default="json")
+    full.add_argument("--format", choices=("json", "markdown", "html", "sarif"), default="json")
     full.add_argument("--language", choices=("ar", "en", "both"), default="both")
     full.add_argument("--profile", choices=tuple(PROFILES), default="full")
+    full.add_argument("--fail-on", choices=tuple(SEVERITY_WEIGHTS), help="exit 3 when a finding reaches this severity")
     sub.add_parser("doctor", help="show runtime and safety defaults")
     sub.add_parser("console", help="open the interactive Termux console")
     return parser
@@ -73,7 +90,7 @@ def run_check(args: argparse.Namespace) -> int:
         print(f"report: {args.report}")
     else:
         print(payload)
-    return 0
+    return evaluate_ci_fail_on([result], args.fail_on)
 
 
 def run_full(args: argparse.Namespace) -> int:
@@ -102,7 +119,7 @@ def run_full(args: argparse.Namespace) -> int:
         print(f"report: {args.report}")
     else:
         print(payload)
-    return 0
+    return evaluate_ci_fail_on(results, args.fail_on)
 
 
 def main(argv: list[str] | None = None) -> int:

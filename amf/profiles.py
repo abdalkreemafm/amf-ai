@@ -5,8 +5,8 @@ from .core import Module, list_modules
 
 PROFILES: dict[str, dict[str, object]] = {
     "quick": {"description": "Core HTTP and TLS posture checks", "modules": ["scanner/http_headers", "scanner/http_cookies", "scanner/http_redirects", "scanner/tls_certificate"]},
-    "web": {"description": "Web response and server configuration review", "modules": ["scanner/http_headers", "scanner/http_cookies", "scanner/http_redirects", "scanner/http_sql_errors", "scanner/http_xss_surface", "scanner/server_misconfiguration"]},
-    "discovery": {"description": "Passive asset and service discovery", "modules": ["scanner/dns_basic", "scanner/http_headers", "scanner/tls_certificate"]},
+    "web": {"description": "Web response and server configuration review", "modules": ["scanner/http_headers", "scanner/http_cookies", "scanner/http_cors", "scanner/http_redirects", "scanner/http_sql_errors", "scanner/http_xss_surface", "scanner/sensitive_files", "scanner/server_misconfiguration"]},
+    "discovery": {"description": "Passive asset and service discovery", "modules": ["scanner/dns_basic", "scanner/dns_email_security", "scanner/http_headers", "scanner/tls_certificate"]},
     "full": {"description": "All registered non-exploitative modules", "modules": []},
 }
 

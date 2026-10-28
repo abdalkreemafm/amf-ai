@@ -16,6 +16,8 @@
 - مكتبة Python القياسية فقط.
 - فهرس Modules ببيانات وصفية وبحث حسب الاسم والوصف والوسوم.
 - Profiles جاهزة: `quick` و`web` و`discovery` و`full`.
+- فحص CORS والملفات الحساسة وSPF/DMARC.
+- إخراج SARIF وخيار `--fail-on` للتكامل مع CI/CD.
 
 ## التثبيت
 
@@ -64,7 +66,16 @@ amf full https://lab.local --allow https://lab.local \
   --profile web --execute --format html --language both --report web.html
 ```
 
+تقرير SARIF وحاجز CI:
+
+```bash
+amf full https://lab.local --allow https://lab.local \
+  --profile web --execute --format sarif --report results.sarif --fail-on high
+```
+
 استفدنا من الأفكار المعمارية العامة في Metasploit، مثل Registry والفهرسة وmetadata وProfiles وواجهة `list/info/search/use`. لم تُنسخ وحدات أو Payloads أو موارد تنفيذ هجومية من Metasploit إلى هذا المشروع. يعتمد AMF على تنفيذ أصلي مستقل، وتجب مراجعة ترخيص أي مكوّن خارجي قبل استخدامه.
+
+تظهر الملفات الحساسة في التقرير من حيث النوع والمسار والحجم والدليل التشخيصي، لكن محتوى المفاتيح وكلمات المرور والرموز السرية يُحجب دائمًا ولا يُكتب خامًا في التقرير أو السجل.
 
 ## التشغيل على Termux
 
@@ -109,8 +120,11 @@ scanner/http_cookies       Secure, HttpOnly and SameSite
 scanner/http_redirects     HTTP to HTTPS redirect posture
 scanner/tls_certificate    TLS negotiation and certificate expiry
 scanner/dns_basic          IPv4/IPv6 resolution discovery
+scanner/dns_email_security SPF and DMARC posture
+scanner/http_cors          CORS configuration review
 scanner/http_sql_errors    Passive database error disclosure
 scanner/http_xss_surface   Passive XSS surface indicators
+scanner/sensitive_files    Sensitive file exposure review
 scanner/server_misconfiguration  Passive server configuration checks
 ```
 

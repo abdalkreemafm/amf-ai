@@ -15,6 +15,7 @@ from amf.modules.http_sql_errors import SQLDatabaseErrorModule
 from amf.modules.http_xss_surface import XSSSurfaceModule
 from amf.modules.server_misconfiguration import ServerMisconfigurationModule
 from amf.reporting import to_json
+from amf.reporting import to_sarif
 from amf.modules.http_headers import HTTPHeadersModule
 from amf.safety import SafetyError, SafetyPolicy, load_allowlist
 
@@ -30,6 +31,9 @@ class FrameworkTests(unittest.TestCase):
         self.assertIn("scanner/http_sql_errors", names)
         self.assertIn("scanner/http_xss_surface", names)
         self.assertIn("scanner/server_misconfiguration", names)
+        self.assertIn("scanner/http_cors", names)
+        self.assertIn("scanner/sensitive_files", names)
+        self.assertIn("scanner/dns_email_security", names)
         self.assertEqual(get_module("scanner/http_headers").name, "scanner/http_headers")
 
     def test_module_metadata_and_search_catalog(self):
@@ -37,6 +41,21 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(module.metadata()["category"], "scanner")
         self.assertIn(module.name, [item.name for item in search_modules("headers")])
         self.assertTrue(profile_modules("web"))
+
+    def test_sarif_report_is_valid(self):
+        from amf.core import Finding, RunResult
+        payload = json.loads(to_sarif([RunResult("test", "https://lab.local", "execute", "now", [Finding("test", "High", "high", "desc", "fix")])]))
+        self.assertEqual(payload["version"], "2.1.0")
+        self.assertEqual(len(payload["runs"][0]["results"]), 1)
+
+    def test_sensitive_file_evidence_is_redacted(self):
+        from amf.modules.sensitive_files import SensitiveFilesModule
+        document = HTTPDocument(200, {}, "API_KEY=super-secret-value")
+        with patch("amf.modules.sensitive_files.fetch_document", return_value=document):
+            findings = SensitiveFilesModule().run("https://lab.local")
+        self.assertTrue(findings)
+        self.assertNotIn("super-secret-value", json.dumps(findings[0].evidence))
+        self.assertIn("REDACTED", findings[0].evidence["content_preview"])
 
     def test_finding_report_contains_type_severity_and_languages(self):
         from amf.core import Finding, RunResult
