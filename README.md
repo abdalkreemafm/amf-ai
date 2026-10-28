@@ -7,6 +7,7 @@
 - Registry للوحدات مع `list` و`info`.
 - وحدة `scanner/http_headers` لفحص رؤوس HTTP الأمنية فقط.
 - وحدات فعلية لاستكشاف Cookies والتحويلات وTLS والشهادة وDNS الأساسي.
+- وحدات تحليل متقدمة تكشف تسرب أخطاء قواعد البيانات، مؤشرات أسطح XSS، وأخطاء تهيئة الخادم دون حقن أو Payloads.
 - وضع `dry-run` افتراضيًا؛ لا يحدث اتصال شبكي ما لم تستخدم `--execute`.
 - allowlist إلزامية للهدف قبل السماح بأي اتصال.
 - تقارير JSON.
@@ -91,9 +92,12 @@ scanner/http_cookies       Secure, HttpOnly and SameSite
 scanner/http_redirects     HTTP to HTTPS redirect posture
 scanner/tls_certificate    TLS negotiation and certificate expiry
 scanner/dns_basic          IPv4/IPv6 resolution discovery
+scanner/http_sql_errors    Passive database error disclosure
+scanner/http_xss_surface   Passive XSS surface indicators
+scanner/server_misconfiguration  Passive server configuration checks
 ```
 
-كل وحدة تنفذ فحصًا محدودًا غير تدخلي، وتعيد Finding يحتوي النوع والخطورة والثقة والدليل والإصلاح بالعربية والإنجليزية.
+كل وحدة تنفذ فحصًا محدودًا غير تدخلي. وحدتا SQL وXSS لا تحقنان مدخلات ولا ترسلان Payloads؛ لذلك تسجلان «مؤشرًا يحتاج مراجعة» عندما لا يكفي الدليل لإثبات قابلية الاستغلال. كل Finding يحتوي النوع والخطورة والثقة والدليل والإصلاح بالعربية والإنجليزية.
 
 ## إضافة وحدة
 

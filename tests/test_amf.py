@@ -9,6 +9,10 @@ from amf.core import get_module, list_modules
 from amf.modules.http_cookies import HTTPCookiesModule
 from amf.modules.dns_basic import DNSBasicModule
 from amf.modules.tls_certificate import TLSCertificateModule
+from amf.modules.http_utils import HTTPDocument
+from amf.modules.http_sql_errors import SQLDatabaseErrorModule
+from amf.modules.http_xss_surface import XSSSurfaceModule
+from amf.modules.server_misconfiguration import ServerMisconfigurationModule
 from amf.reporting import to_json
 from amf.modules.http_headers import HTTPHeadersModule
 from amf.safety import SafetyError, SafetyPolicy, load_allowlist
@@ -22,6 +26,9 @@ class FrameworkTests(unittest.TestCase):
         self.assertIn("scanner/http_redirects", names)
         self.assertIn("scanner/tls_certificate", names)
         self.assertIn("scanner/dns_basic", names)
+        self.assertIn("scanner/http_sql_errors", names)
+        self.assertIn("scanner/http_xss_surface", names)
+        self.assertIn("scanner/server_misconfiguration", names)
         self.assertEqual(get_module("scanner/http_headers").name, "scanner/http_headers")
 
     def test_finding_report_contains_type_severity_and_languages(self):
@@ -103,6 +110,27 @@ class FrameworkTests(unittest.TestCase):
             findings = DNSBasicModule().run("http://lab.local")
         self.assertEqual(findings[0].finding_type, "asset-discovery")
         self.assertIn("127.0.0.1", findings[0].evidence["addresses"])
+
+    def test_sql_module_only_reports_passive_error_disclosure(self):
+        document = HTTPDocument(500, {"Content-Type": "text/html"}, "Database error: PostgreSQL pg_query failed")
+        with patch("amf.modules.http_sql_errors.fetch_document", return_value=document):
+            findings = SQLDatabaseErrorModule().run("https://lab.local")
+        self.assertEqual(findings[0].finding_type, "sql-error-disclosure")
+        self.assertEqual(findings[0].severity, "medium")
+
+    def test_xss_module_reports_review_signal_without_payload(self):
+        document = HTTPDocument(200, {}, '<form><input></form><script>element.innerHTML = value</script>')
+        with patch("amf.modules.http_xss_surface.fetch_document", return_value=document):
+            findings = XSSSurfaceModule().run("https://lab.local")
+        self.assertEqual(findings[0].finding_type, "xss-risk-indicator")
+        self.assertEqual(findings[0].confidence, "low")
+
+    def test_server_module_reports_disclosure_and_directory_listing(self):
+        document = HTTPDocument(200, {"Server": "Example/1.0"}, "<title>Index of /backup</title>")
+        with patch("amf.modules.server_misconfiguration.fetch_document", return_value=document):
+            findings = ServerMisconfigurationModule().run("https://lab.local")
+        types = {finding.finding_type for finding in findings}
+        self.assertEqual(types, {"information-disclosure", "directory-listing"})
 
     def test_console_check_is_dry_run(self):
         output = StringIO()
