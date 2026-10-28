@@ -5,7 +5,8 @@ import shlex
 import sys
 from pathlib import Path
 
-from .core import RunResult, get_module, list_modules, utc_now
+from .core import RunResult, get_module, list_modules, search_modules, utc_now
+from .profiles import PROFILES, profile_modules
 from .reporting import to_json
 from .safety import SafetyError, SafetyPolicy, load_allowlist
 from . import modules  # noqa: F401 - registers built-in modules
@@ -33,6 +34,16 @@ class AMFConsole(cmd.Cmd):
         """List available defensive modules."""
         for module in list_modules():
             print(f"{module.name}\t{module.description}", file=self.stdout)
+
+    def do_search(self, line: str):
+        """Search modules: search <term>"""
+        for module in search_modules(line):
+            print(f"{module.name}\t[{module.category}/{module.risk}]\t{module.description}", file=self.stdout)
+
+    def do_profiles(self, _line: str):
+        """List safe audit profiles."""
+        for name, profile in PROFILES.items():
+            print(f"{name}\t{len(profile_modules(name))} module(s)\t{profile['description']}", file=self.stdout)
 
     def do_info(self, line: str):
         """Show module information: info <module>"""

@@ -20,6 +20,7 @@ _PATTERNS = {
 class SQLDatabaseErrorModule(Module):
     name = "scanner/http_sql_errors"
     description = "Passively detects database error signatures in a normal HTTP response; it never injects input."
+    tags = ("http", "database", "disclosure", "sql")
 
     def run(self, target: str, *, timeout: float = 5.0) -> list[Finding]:
         document = fetch_document(target, timeout=timeout)

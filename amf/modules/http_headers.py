@@ -34,6 +34,7 @@ _SECURITY_HEADERS = {
 class HTTPHeadersModule(Module):
     name = "scanner/http_headers"
     description = "Checks common HTTP security headers without exploiting the target."
+    tags = ("http", "headers", "hardening")
 
     def run(self, target: str, *, timeout: float = 5.0) -> list[Finding]:
         request = Request(target, method="HEAD", headers={"User-Agent": "AMF-Defensive/0.1"})

@@ -14,6 +14,8 @@
 - تقرير منظم لكل اكتشاف يتضمن النوع والخطورة والثقة والدليل والأثر والإصلاح بالعربية والإنجليزية.
 - تصدير JSON وMarkdown وHTML عبر `--format` و`--language`.
 - مكتبة Python القياسية فقط.
+- فهرس Modules ببيانات وصفية وبحث حسب الاسم والوصف والوسوم.
+- Profiles جاهزة: `quick` و`web` و`discovery` و`full`.
 
 ## التثبيت
 
@@ -27,6 +29,8 @@ python -m pip install -e .
 
 ```bash
 amf list
+amf search headers
+amf profiles
 amf info scanner/http_headers
 amf doctor
 
@@ -53,6 +57,15 @@ amf check scanner/http_headers https://lab.local \
 
 كل finding في التقرير يحتوي على `type` و`severity` و`confidence` و`evidence`، بالإضافة إلى العنوان والوصف والإصلاح بالعربية والإنجليزية.
 
+يمكن تشغيل Profile محدد بدل جميع الوحدات:
+
+```bash
+amf full https://lab.local --allow https://lab.local \
+  --profile web --execute --format html --language both --report web.html
+```
+
+استفدنا من الأفكار المعمارية العامة في Metasploit، مثل Registry والفهرسة وmetadata وProfiles وواجهة `list/info/search/use`. لم تُنسخ وحدات أو Payloads أو موارد تنفيذ هجومية من Metasploit إلى هذا المشروع. يعتمد AMF على تنفيذ أصلي مستقل، وتجب مراجعة ترخيص أي مكوّن خارجي قبل استخدامه.
+
 ## التشغيل على Termux
 
 لا يحتاج الإصدار الحالي إلى `nmap` أو `hydra` أو حزم خارجية. بعد تثبيت Python في Termux، شغّل الواجهة التفاعلية:
@@ -70,6 +83,10 @@ python -m amf
 
 ```text
 amf > list
+amf > search headers
+amf > list
+amf > search headers
+amf > profiles
 amf > use scanner/http_headers
 amf (scanner/http_headers) > set TARGET http://127.0.0.1:8000
 amf (scanner/http_headers) > set ALLOW http://127.0.0.1:8000

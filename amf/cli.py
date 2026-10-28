@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .core import RunResult, get_module, list_modules, utc_now
+from .core import RunResult, get_module, list_modules, search_modules, utc_now
+from .profiles import PROFILES, profile_modules
 from .reporting import render
 from .safety import SafetyError, SafetyPolicy, load_allowlist
 from .console import start_console
@@ -19,6 +20,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=__version__)
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("list", help="list available modules")
+    search = sub.add_parser("search", help="search the module catalog")
+    search.add_argument("query", nargs="?", default="")
+    search.add_argument("--category")
+    sub.add_parser("profiles", help="list safe audit profiles")
     info = sub.add_parser("info", help="show module information")
     info.add_argument("module")
     check = sub.add_parser("check", help="run one non-exploitative check")
@@ -38,6 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     full.add_argument("--report", type=Path)
     full.add_argument("--format", choices=("json", "markdown", "html"), default="json")
     full.add_argument("--language", choices=("ar", "en", "both"), default="both")
+    full.add_argument("--profile", choices=tuple(PROFILES), default="full")
     sub.add_parser("doctor", help="show runtime and safety defaults")
     sub.add_parser("console", help="open the interactive Termux console")
     return parser
@@ -80,7 +86,7 @@ def run_full(args: argparse.Namespace) -> int:
         return 2
 
     results: list[RunResult] = []
-    for module in list_modules():
+    for module in profile_modules(args.profile):
         result = RunResult(module.name, target, "execute" if args.execute else "dry-run", utc_now())
         if args.execute:
             result.findings = module.run(target, timeout=args.timeout)
@@ -107,13 +113,21 @@ def main(argv: list[str] | None = None) -> int:
         for module in list_modules():
             print(f"{module.name}\t{module.description}")
         return 0
+    if args.command == "search":
+        for module in search_modules(args.query, args.category):
+            print(f"{module.name}\t[{module.category}/{module.risk}]\t{module.description}")
+        return 0
+    if args.command == "profiles":
+        for name, profile in PROFILES.items():
+            print(f"{name}\t{len(profile_modules(name))} module(s)\t{profile['description']}")
+        return 0
     if args.command == "info":
         try:
             module = get_module(args.module)
         except KeyError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
-        print(json.dumps({"name": module.name, "description": module.description}, ensure_ascii=False, indent=2))
+        print(json.dumps(module.metadata(), ensure_ascii=False, indent=2))
         return 0
     if args.command == "doctor":
         print(json.dumps({"version": __version__, "python": platform.python_version(), "default_mode": "dry-run", "network_policy": "explicit allowlist required"}, ensure_ascii=False, indent=2))

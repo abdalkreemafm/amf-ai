@@ -15,6 +15,7 @@ _FORMS = re.compile(r"<form\b", re.I)
 class XSSSurfaceModule(Module):
     name = "scanner/http_xss_surface"
     description = "Passively identifies HTML forms and client-side dangerous sinks; it never injects XSS payloads."
+    tags = ("http", "xss", "dom", "review")
 
     def run(self, target: str, *, timeout: float = 5.0) -> list[Finding]:
         document = fetch_document(target, timeout=timeout)

@@ -54,14 +54,7 @@ class RunResult:
     error: str | None = None
 
     def to_dict(self, language: str = "both") -> dict[str, Any]:
-        return {
-            "module": self.module,
-            "target": self.target,
-            "mode": self.mode,
-            "started_at": self.started_at,
-            "findings": [item.to_dict(language) for item in self.findings],
-            "error": self.error,
-        }
+        return {"module": self.module, "target": self.target, "mode": self.mode, "started_at": self.started_at, "findings": [item.to_dict(language) for item in self.findings], "error": self.error}
 
 
 def utc_now() -> str:
@@ -71,9 +64,16 @@ def utc_now() -> str:
 class Module:
     name = ""
     description = ""
+    category = "scanner"
+    risk = "passive"
+    tags: tuple[str, ...] = ()
+    references: tuple[str, ...] = ()
 
     def run(self, target: str, *, timeout: float = 5.0) -> list[Finding]:
         raise NotImplementedError
+
+    def metadata(self) -> dict[str, Any]:
+        return {"name": self.name, "description": self.description, "category": self.category, "risk": self.risk, "tags": list(self.tags), "references": list(self.references)}
 
 
 _REGISTRY: dict[str, Callable[[], Module]] = {}
@@ -98,3 +98,9 @@ def get_module(name: str) -> Module:
 
 def list_modules() -> list[Module]:
     return [_REGISTRY[name]() for name in sorted(_REGISTRY)]
+
+
+def search_modules(query: str = "", category: str | None = None) -> list[Module]:
+    needle = query.casefold().strip()
+    modules = list_modules()
+    return [module for module in modules if (not category or module.category == category) and (not needle or needle in (module.name + " " + module.description + " " + " ".join(module.tags)).casefold())]

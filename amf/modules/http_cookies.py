@@ -10,6 +10,7 @@ from ..core import Finding, Module, register
 class HTTPCookiesModule(Module):
     name = "scanner/http_cookies"
     description = "Checks Secure, HttpOnly and SameSite attributes on HTTP cookies."
+    tags = ("http", "cookies", "session")
 
     def run(self, target: str, *, timeout: float = 5.0) -> list[Finding]:
         request = Request(target, method="HEAD", headers={"User-Agent": "AMF-Defensive/0.1"})

@@ -5,7 +5,8 @@ from unittest.mock import patch
 
 from amf.cli import main
 from amf.console import AMFConsole
-from amf.core import get_module, list_modules
+from amf.core import get_module, list_modules, search_modules
+from amf.profiles import profile_modules
 from amf.modules.http_cookies import HTTPCookiesModule
 from amf.modules.dns_basic import DNSBasicModule
 from amf.modules.tls_certificate import TLSCertificateModule
@@ -30,6 +31,12 @@ class FrameworkTests(unittest.TestCase):
         self.assertIn("scanner/http_xss_surface", names)
         self.assertIn("scanner/server_misconfiguration", names)
         self.assertEqual(get_module("scanner/http_headers").name, "scanner/http_headers")
+
+    def test_module_metadata_and_search_catalog(self):
+        module = get_module("scanner/http_headers")
+        self.assertEqual(module.metadata()["category"], "scanner")
+        self.assertIn(module.name, [item.name for item in search_modules("headers")])
+        self.assertTrue(profile_modules("web"))
 
     def test_finding_report_contains_type_severity_and_languages(self):
         from amf.core import Finding, RunResult

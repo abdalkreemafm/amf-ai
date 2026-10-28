@@ -13,6 +13,7 @@ _DIRECTORY_INDEX = re.compile(r"<title>\s*(?:index of|directory listing)", re.I)
 class ServerMisconfigurationModule(Module):
     name = "scanner/server_misconfiguration"
     description = "Checks passive server misconfiguration indicators in normal HTTP responses."
+    tags = ("http", "server", "hardening", "disclosure")
 
     def run(self, target: str, *, timeout: float = 5.0) -> list[Finding]:
         document = fetch_document(target, timeout=timeout)
