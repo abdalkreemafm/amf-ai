@@ -62,6 +62,9 @@ def build_parser() -> argparse.ArgumentParser:
     full.add_argument("--profile", choices=tuple(PROFILES), default="full")
     full.add_argument("--fail-on", choices=tuple(SEVERITY_WEIGHTS), help="exit 3 when a finding reaches this severity")
     sub.add_parser("doctor", help="show runtime and safety defaults")
+    api = sub.add_parser("api", help="start the local React dashboard API")
+    api.add_argument("--host", default="127.0.0.1")
+    api.add_argument("--port", type=int, default=8765)
     sub.add_parser("console", help="open the interactive Termux console")
     return parser
 
@@ -148,6 +151,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "doctor":
         print(json.dumps({"version": __version__, "python": platform.python_version(), "default_mode": "dry-run", "network_policy": "explicit allowlist required"}, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "api":
+        from .api import serve
+        try:
+            serve(args.host, args.port)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
         return 0
     if args.command == "console":
         return start_console()

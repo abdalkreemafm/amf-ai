@@ -18,6 +18,7 @@ from amf.reporting import to_json
 from amf.reporting import to_sarif
 from amf.modules.http_headers import HTTPHeadersModule
 from amf.safety import SafetyError, SafetyPolicy, load_allowlist
+from amf.api import run_scan
 
 
 class FrameworkTests(unittest.TestCase):
@@ -56,6 +57,15 @@ class FrameworkTests(unittest.TestCase):
         self.assertTrue(findings)
         self.assertNotIn("super-secret-value", json.dumps(findings[0].evidence))
         self.assertIn("REDACTED", findings[0].evidence["content_preview"])
+
+    def test_local_api_scan_defaults_to_dry_run(self):
+        results = run_scan({"target": "https://lab.local", "allow": ["https://lab.local"], "profile": "quick"})
+        self.assertEqual(len(results), 4)
+        self.assertTrue(all(result.mode == "dry-run" for result in results))
+
+    def test_local_api_rejects_target_outside_allowlist(self):
+        with self.assertRaises(SafetyError):
+            run_scan({"target": "https://other.local", "allow": ["https://lab.local"]})
 
     def test_finding_report_contains_type_severity_and_languages(self):
         from amf.core import Finding, RunResult

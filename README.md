@@ -90,6 +90,23 @@ python -m pip install -e .
 python -m amf
 ```
 
+## لوحة React المحلية
+
+شغّل محرك API في نافذة طرفية:
+
+```bash
+python -m amf api
+```
+
+ثم شغّل واجهة التطوير في نافذة أخرى:
+
+```bash
+npm install
+npm run dev
+```
+
+افتح `http://127.0.0.1:5173`. تستدعي الواجهة API محليًا فقط، ويبقى التحقق من `allowlist` و`dry-run` داخل Python وليس داخل المتصفح.
+
 داخل الواجهة:
 
 ```text
