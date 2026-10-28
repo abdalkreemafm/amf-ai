@@ -6,6 +6,7 @@
 
 - Registry للوحدات مع `list` و`info`.
 - وحدة `scanner/http_headers` لفحص رؤوس HTTP الأمنية فقط.
+- وحدات فعلية لاستكشاف Cookies والتحويلات وTLS والشهادة وDNS الأساسي.
 - وضع `dry-run` افتراضيًا؛ لا يحدث اتصال شبكي ما لم تستخدم `--execute`.
 - allowlist إلزامية للهدف قبل السماح بأي اتصال.
 - تقارير JSON.
@@ -81,6 +82,18 @@ amf (scanner/http_headers) > exit
 `check` لا يتصل بالشبكة. الأمر `run` يبقى محميًا ولا يعمل إلا بعد ضبط `EXECUTE true` ووجود الهدف نفسه في `ALLOW`.
 
 استخدم الأداة فقط على أنظمة تملكها أو لديك تفويض مكتوب لاختبارها. لا توجد في المشروع وظائف لتوليد payloads أو تنفيذ أوامر على أهداف أو فتح جلسات أو تجاوز ضوابط.
+
+## الوحدات الحالية
+
+```text
+scanner/http_headers       HTTP security headers
+scanner/http_cookies       Secure, HttpOnly and SameSite
+scanner/http_redirects     HTTP to HTTPS redirect posture
+scanner/tls_certificate    TLS negotiation and certificate expiry
+scanner/dns_basic          IPv4/IPv6 resolution discovery
+```
+
+كل وحدة تنفذ فحصًا محدودًا غير تدخلي، وتعيد Finding يحتوي النوع والخطورة والثقة والدليل والإصلاح بالعربية والإنجليزية.
 
 ## إضافة وحدة
 

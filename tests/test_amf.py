@@ -7,6 +7,8 @@ from amf.cli import main
 from amf.console import AMFConsole
 from amf.core import get_module, list_modules
 from amf.modules.http_cookies import HTTPCookiesModule
+from amf.modules.dns_basic import DNSBasicModule
+from amf.modules.tls_certificate import TLSCertificateModule
 from amf.reporting import to_json
 from amf.modules.http_headers import HTTPHeadersModule
 from amf.safety import SafetyError, SafetyPolicy, load_allowlist
@@ -17,6 +19,9 @@ class FrameworkTests(unittest.TestCase):
         names = [module.name for module in list_modules()]
         self.assertIn("scanner/http_headers", names)
         self.assertIn("scanner/http_cookies", names)
+        self.assertIn("scanner/http_redirects", names)
+        self.assertIn("scanner/tls_certificate", names)
+        self.assertIn("scanner/dns_basic", names)
         self.assertEqual(get_module("scanner/http_headers").name, "scanner/http_headers")
 
     def test_finding_report_contains_type_severity_and_languages(self):
@@ -38,6 +43,11 @@ class FrameworkTests(unittest.TestCase):
     def test_dry_run_does_not_open_network(self):
         with patch("urllib.request.urlopen") as opener:
             self.assertEqual(main(["check", "scanner/http_headers", "https://lab.local", "--allow", "https://lab.local"]), 0)
+            opener.assert_not_called()
+
+    def test_full_dry_run_does_not_open_network(self):
+        with patch("urllib.request.urlopen") as opener:
+            self.assertEqual(main(["full", "https://lab.local", "--allow", "https://lab.local"]), 0)
             opener.assert_not_called()
 
     def test_report_is_valid_json(self):
@@ -82,6 +92,17 @@ class FrameworkTests(unittest.TestCase):
             findings = HTTPCookiesModule().run("https://lab.local")
         self.assertEqual(len(findings), 3)
         self.assertTrue(all(item.finding_type == "cookie-security" for item in findings))
+
+    def test_tls_module_rejects_non_https_without_network(self):
+        findings = TLSCertificateModule().run("http://lab.local")
+        self.assertEqual(findings[0].finding_type, "input-validation")
+        self.assertEqual(findings[0].severity, "info")
+
+    def test_dns_module_reports_resolved_addresses(self):
+        with patch("amf.modules.dns_basic.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("127.0.0.1", 80)), (10, 1, 6, "", ("::1", 80))]):
+            findings = DNSBasicModule().run("http://lab.local")
+        self.assertEqual(findings[0].finding_type, "asset-discovery")
+        self.assertIn("127.0.0.1", findings[0].evidence["addresses"])
 
     def test_console_check_is_dry_run(self):
         output = StringIO()

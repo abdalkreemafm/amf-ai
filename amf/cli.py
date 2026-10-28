@@ -30,6 +30,14 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--report", type=Path)
     check.add_argument("--format", choices=("json", "markdown", "html"), default="json")
     check.add_argument("--language", choices=("ar", "en", "both"), default="both")
+    full = sub.add_parser("full", help="run all registered non-exploitative checks")
+    full.add_argument("target")
+    full.add_argument("--allow", action="append", default=[])
+    full.add_argument("--execute", action="store_true")
+    full.add_argument("--timeout", type=float, default=5.0)
+    full.add_argument("--report", type=Path)
+    full.add_argument("--format", choices=("json", "markdown", "html"), default="json")
+    full.add_argument("--language", choices=("ar", "en", "both"), default="both")
     sub.add_parser("doctor", help="show runtime and safety defaults")
     sub.add_parser("console", help="open the interactive Termux console")
     return parser
@@ -62,6 +70,35 @@ def run_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_full(args: argparse.Namespace) -> int:
+    try:
+        allowlist = load_allowlist(args.allow)
+        policy = SafetyPolicy(allowlist, execute=args.execute, timeout=args.timeout)
+        target = policy.validate(args.target)
+    except (SafetyError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    results: list[RunResult] = []
+    for module in list_modules():
+        result = RunResult(module.name, target, "execute" if args.execute else "dry-run", utc_now())
+        if args.execute:
+            result.findings = module.run(target, timeout=args.timeout)
+        results.append(result)
+    if not args.execute:
+        print("dry-run: no network request was made")
+    else:
+        total = sum(len(item.findings) for item in results)
+        print(f"completed: {len(results)} module(s), {total} finding(s)")
+    payload = render(results, args.format, args.language)
+    if args.report:
+        args.report.write_text(payload + "\n", encoding="utf-8")
+        print(f"report: {args.report}")
+    else:
+        print(payload)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command is None:
@@ -83,6 +120,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "console":
         return start_console()
+    if args.command == "full":
+        return run_full(args)
     return run_check(args)
 
 
