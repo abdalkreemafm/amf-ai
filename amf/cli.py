@@ -10,7 +10,7 @@ from . import __version__
 from .core import RunResult, get_module, list_modules, search_modules, utc_now
 from .profiles import PROFILES, profile_modules
 from .reporting import render
-from .safety import SafetyError, SafetyPolicy, load_allowlist
+from .safety import SafetyError, SafetyPolicy, load_allowlist, require_authorized_execution
 from .console import start_console
 from . import modules  # noqa: F401 - registers built-in modules
 from .integrations import ADAPTERS, tool_catalog
@@ -48,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("target")
     check.add_argument("--allow", action="append", default=[], help="explicitly allow this exact URL")
     check.add_argument("--execute", action="store_true", help="enable the network request after allowlist validation")
+    check.add_argument("--confirm-authorized-use", action="store_true", help="confirm you are authorized to test this target")
     check.add_argument("--timeout", type=float, default=5.0)
     check.add_argument("--report", type=Path)
     check.add_argument("--format", choices=("json", "markdown", "html", "sarif"), default="json")
@@ -57,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     full.add_argument("target")
     full.add_argument("--allow", action="append", default=[])
     full.add_argument("--execute", action="store_true")
+    full.add_argument("--confirm-authorized-use", action="store_true", help="confirm you are authorized to test this target")
     full.add_argument("--timeout", type=float, default=5.0)
     full.add_argument("--report", type=Path)
     full.add_argument("--format", choices=("json", "markdown", "html", "sarif"), default="json")
@@ -68,6 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
     external.add_argument("target")
     external.add_argument("--allow", action="append", default=[])
     external.add_argument("--execute", action="store_true", help="confirm the authorized network probe")
+    external.add_argument("--confirm-authorized-use", action="store_true", help="confirm you are authorized to run this external tool")
     external.add_argument("--timeout", type=float, default=10.0)
     external.add_argument("--report", type=Path)
     external.add_argument("--format", choices=("json", "markdown", "html", "sarif"), default="json")
@@ -82,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def run_check(args: argparse.Namespace) -> int:
     try:
+        require_authorized_execution(args.execute, args.confirm_authorized_use)
         allowlist = load_allowlist(args.allow)
         policy = SafetyPolicy(allowlist, execute=args.execute, timeout=args.timeout)
         target = policy.validate(args.target)
@@ -109,6 +113,7 @@ def run_check(args: argparse.Namespace) -> int:
 
 def run_full(args: argparse.Namespace) -> int:
     try:
+        require_authorized_execution(args.execute, args.confirm_authorized_use)
         allowlist = load_allowlist(args.allow)
         policy = SafetyPolicy(allowlist, execute=args.execute, timeout=args.timeout)
         target = policy.validate(args.target)
@@ -138,6 +143,7 @@ def run_full(args: argparse.Namespace) -> int:
 
 def run_external(args: argparse.Namespace) -> int:
     try:
+        require_authorized_execution(args.execute, args.confirm_authorized_use)
         policy = SafetyPolicy(load_allowlist(args.allow), execute=args.execute, timeout=args.timeout)
         target = policy.validate(args.target)
         adapter = ADAPTERS[args.tool]

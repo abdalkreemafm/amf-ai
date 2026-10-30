@@ -1,4 +1,4 @@
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from .correlation import Asset, CorrelationSummary, Observation, correlate_results
 

@@ -80,6 +80,13 @@ class FrameworkTests(unittest.TestCase):
             self.assertEqual(main(["external", "dns", "https://lab.local", "--allow", "https://lab.local"]), 0)
             adapter_run.assert_not_called()
 
+    def test_external_execute_requires_explicit_confirmation(self):
+        self.assertEqual(main(["external", "dns", "https://lab.local", "--allow", "https://lab.local", "--execute"]), 2)
+
+    def test_api_execute_requires_explicit_confirmation(self):
+        with self.assertRaises(SafetyError):
+            run_scan({"target": "https://lab.local", "allow": ["https://lab.local"], "profile": "quick", "execute": True})
+
     def test_correlation_deduplicates_same_observation(self):
         from amf.core import Finding, RunResult
         results = [

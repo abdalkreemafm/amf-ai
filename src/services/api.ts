@@ -14,7 +14,7 @@ export function getProfiles() { return request<{ profiles: ProfileInfo[] }>('/pr
 export function runScan(input: { target: string; allow: string[]; execute: boolean; profile: string; timeout: number }) {
   return request<{ results: RunResult[] }>('/scan', { method: 'POST', body: JSON.stringify(input) });
 }
-export function createJob(input: { target: string; allow: string[]; execute: boolean; profile: string; timeout: number }) {
+export function createJob(input: { target: string; allow: string[]; execute: boolean; confirm_authorized_use: boolean; profile: string; timeout: number }) {
   return request<{ job: Job }>('/jobs', { method: 'POST', body: JSON.stringify(input) });
 }
 export function getJob(id: string) { return request<{ job: Job }>(`/jobs/${id}`); }

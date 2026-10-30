@@ -6,7 +6,7 @@ from typing import Any, Callable
 from . import modules  # noqa: F401
 from .core import RunResult, utc_now
 from .profiles import profile_modules
-from .safety import SafetyPolicy, load_allowlist
+from .safety import SafetyPolicy, load_allowlist, require_authorized_execution
 
 ProgressCallback = Callable[[int, int, str], None]
 
@@ -21,6 +21,7 @@ def run_scan(payload: dict[str, Any], progress: ProgressCallback | None = None, 
     if not isinstance(allow, list) or not all(isinstance(item, str) for item in allow):
         raise ValueError("allow must be a list of URLs")
     execute = bool(payload.get("execute", False))
+    require_authorized_execution(execute, bool(payload.get("confirm_authorized_use", False)))
     timeout = float(payload.get("timeout", 5.0))
     profile = payload.get("profile", "full")
     if not isinstance(profile, str):

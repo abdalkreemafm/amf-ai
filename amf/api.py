@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlsplit
 
-from . import modules  # noqa: F401
+from . import __version__, modules  # noqa: F401
 from .api_scan import run_scan
 from .correlation import correlate_results
 from .integrations import tool_catalog
@@ -51,7 +51,7 @@ class AMFRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = urlsplit(self.path).path
         if path == "/api/health":
-            self._send(200, {"ok": True, "version": "0.3.0", "mode": "local-only"})
+            self._send(200, {"ok": True, "version": __version__, "mode": "local-only"})
         elif path == "/api/modules":
             self._send(200, {"modules": [module.metadata() for module in list_modules()]})
         elif path == "/api/profiles":

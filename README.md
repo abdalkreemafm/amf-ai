@@ -41,9 +41,9 @@ amf doctor
 # dry-run: لا يوجد اتصال شبكي
 amf check scanner/http_headers https://lab.local --allow https://lab.local
 
-# تنفيذ فحص HEAD محدود على هدف مصرّح به صراحة
+# تنفيذ فحص HEAD محدود بعد تأكيد التفويض
 amf check scanner/http_headers https://lab.local \
-  --allow https://lab.local --execute --timeout 5 \
+  --allow https://lab.local --execute --confirm-authorized-use --timeout 5 \
   --report report.json --format json --language both
 ```
 
@@ -89,13 +89,13 @@ python -m amf tools
 python -m amf external dns https://lab.local --allow https://lab.local
 
 python -m amf external openssl https://lab.local \
-  --allow https://lab.local --execute --timeout 10
+  --allow https://lab.local --execute --confirm-authorized-use --timeout 10
 
 python -m amf external nmap https://lab.local \
-  --allow https://lab.local --execute --timeout 30
+  --allow https://lab.local --execute --confirm-authorized-use --timeout 30
 ```
 
-يستدعي AMF الأدوات عبر قوائم arguments بدون `shell=True`، ولا يثبت أي أداة تلقائيًا. Nmap محدود إلى أعلى 20 منفذًا مع `--version-light`، ويظل مخصصًا للأهداف التي تملك تصريحًا صريحًا لفحصها.
+يستدعي AMF الأدوات عبر قوائم arguments بدون `shell=True`، ولا يثبت أي أداة تلقائيًا. Nmap محدود إلى أعلى 20 منفذًا مع `--version-light`، ويظل مخصصًا للأهداف التي تملك تصريحًا صريحًا لفحصها. التنفيذ الفعلي يتطلب `--confirm-authorized-use`؛ هذا سجل تأكيد تقني وليس إعفاءً قانونيًا. راجع `USER_RESPONSIBILITY.md` و`THIRD_PARTY_NOTICES.md`.
 
 استفدنا من الأفكار المعمارية العامة في Metasploit، مثل Registry والفهرسة وmetadata وProfiles وواجهة `list/info/search/use`. لم تُنسخ وحدات أو Payloads أو موارد تنفيذ هجومية من Metasploit إلى هذا المشروع. يعتمد AMF على تنفيذ أصلي مستقل، وتجب مراجعة ترخيص أي مكوّن خارجي قبل استخدامه.
 

@@ -38,7 +38,7 @@ export default function App() {
     setResults([]);
     setLoading(true);
     try {
-      let current = (await createJob({ target, allow: [allow], execute, profile, timeout: 5 })).job;
+      let current = (await createJob({ target, allow: [allow], execute, confirm_authorized_use: execute, profile, timeout: 5 })).job;
       setJob(current);
       while (current.status === 'queued' || current.status === 'running') {
         await new Promise((resolve) => window.setTimeout(resolve, 250));

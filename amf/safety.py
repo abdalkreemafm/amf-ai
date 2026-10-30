@@ -9,6 +9,11 @@ class SafetyError(ValueError):
     pass
 
 
+def require_authorized_execution(execute: bool, confirmed: bool) -> None:
+    if execute and not confirmed:
+        raise SafetyError("active execution requires --confirm-authorized-use or confirm_authorized_use=true")
+
+
 @dataclass(frozen=True)
 class SafetyPolicy:
     allowed_targets: frozenset[str]
