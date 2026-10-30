@@ -18,6 +18,7 @@
 - Profiles جاهزة: `quick` و`web` و`discovery` و`full`.
 - فحص CORS والملفات الحساسة وSPF/DMARC.
 - إخراج SARIF وخيار `--fail-on` للتكامل مع CI/CD.
+- كتالوج Adapters اختياري لـ DNS المحلي وOpenSSL وNmap المحدود.
 
 ## التثبيت
 
@@ -73,13 +74,35 @@ amf full https://lab.local --allow https://lab.local \
   --profile web --execute --format sarif --report results.sarif --fail-on high
 ```
 
+### الأدوات الخارجية الاختيارية
+
+اعرض توفر الأدوات وإصداراتها دون تثبيت تلقائي:
+
+```bash
+python -m amf tools
+```
+
+شغّل Adapter محددًا على هدف مصرّح به. الأمر الأول لا ينفذ شبكة، أما الأمران التاليان فيحتاجان إلى `--execute` صريح:
+
+```bash
+python -m amf external dns https://lab.local --allow https://lab.local
+
+python -m amf external openssl https://lab.local \
+  --allow https://lab.local --execute --timeout 10
+
+python -m amf external nmap https://lab.local \
+  --allow https://lab.local --execute --timeout 30
+```
+
+يستدعي AMF الأدوات عبر قوائم arguments بدون `shell=True`، ولا يثبت أي أداة تلقائيًا. Nmap محدود إلى أعلى 20 منفذًا مع `--version-light`، ويظل مخصصًا للأهداف التي تملك تصريحًا صريحًا لفحصها.
+
 استفدنا من الأفكار المعمارية العامة في Metasploit، مثل Registry والفهرسة وmetadata وProfiles وواجهة `list/info/search/use`. لم تُنسخ وحدات أو Payloads أو موارد تنفيذ هجومية من Metasploit إلى هذا المشروع. يعتمد AMF على تنفيذ أصلي مستقل، وتجب مراجعة ترخيص أي مكوّن خارجي قبل استخدامه.
 
 تظهر الملفات الحساسة في التقرير من حيث النوع والمسار والحجم والدليل التشخيصي، لكن محتوى المفاتيح وكلمات المرور والرموز السرية يُحجب دائمًا ولا يُكتب خامًا في التقرير أو السجل.
 
 ## التشغيل على Termux
 
-لا يحتاج الإصدار الحالي إلى `nmap` أو `hydra` أو حزم خارجية. بعد تثبيت Python في Termux، شغّل الواجهة التفاعلية:
+لا تحتاج الوحدات الأساسية إلى أدوات خارجية. OpenSSL وNmap اختياريان، ويظهر توفرهما عبر `python -m amf tools`. بعد تثبيت Python في Termux، شغّل الواجهة التفاعلية:
 
 ```bash
 pkg update
@@ -106,6 +129,8 @@ npm run dev
 ```
 
 افتح `http://127.0.0.1:5173`. تستدعي الواجهة API محليًا فقط، ويبقى التحقق من `allowlist` و`dry-run` داخل Python وليس داخل المتصفح.
+
+يوفر API أيضًا `GET /api/tools` لعرض حالة الأدوات الخارجية وإصداراتها للوحة التحكم أو أي عميل محلي آخر.
 
 داخل الواجهة:
 

@@ -19,6 +19,7 @@ from amf.reporting import to_sarif
 from amf.modules.http_headers import HTTPHeadersModule
 from amf.safety import SafetyError, SafetyPolicy, load_allowlist
 from amf.api import run_scan
+from amf.integrations import ADAPTERS, tool_catalog
 
 
 class FrameworkTests(unittest.TestCase):
@@ -66,6 +67,15 @@ class FrameworkTests(unittest.TestCase):
     def test_local_api_rejects_target_outside_allowlist(self):
         with self.assertRaises(SafetyError):
             run_scan({"target": "https://other.local", "allow": ["https://lab.local"]})
+
+    def test_external_tool_catalog_reports_expected_adapters(self):
+        names = {item["name"] for item in tool_catalog()}
+        self.assertEqual(names, {"dns", "openssl", "nmap"})
+
+    def test_external_command_is_dry_run_without_execute(self):
+        with patch.object(ADAPTERS["dns"], "run") as adapter_run:
+            self.assertEqual(main(["external", "dns", "https://lab.local", "--allow", "https://lab.local"]), 0)
+            adapter_run.assert_not_called()
 
     def test_finding_report_contains_type_severity_and_languages(self):
         from amf.core import Finding, RunResult

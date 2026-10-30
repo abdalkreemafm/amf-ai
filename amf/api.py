@@ -8,6 +8,7 @@ from . import modules  # noqa: F401
 from .core import RunResult, get_module, list_modules, utc_now
 from .profiles import PROFILES, profile_modules
 from .safety import SafetyError, SafetyPolicy, load_allowlist
+from .integrations import tool_catalog
 
 
 class AMFRequestHandler(BaseHTTPRequestHandler):
@@ -41,6 +42,9 @@ class AMFRequestHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/profiles":
             self._send(200, {"profiles": [{"name": name, "description": item["description"], "module_count": len(profile_modules(name))} for name, item in PROFILES.items()]})
+            return
+        if self.path == "/api/tools":
+            self._send(200, {"tools": tool_catalog()})
             return
         self._send(404, {"error": "not found"})
 
