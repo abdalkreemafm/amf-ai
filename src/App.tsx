@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getHealth, getModules, getProfiles, runScan } from './services/api';
-import type { Finding, ModuleInfo, ProfileInfo, RunResult, Severity } from './types/amf';
+import { createJob, getHealth, getJob, getModules, getProfiles } from './services/api';
+import type { Finding, Job, ModuleInfo, ProfileInfo, RunResult, Severity } from './types/amf';
 
 const severityOrder: Severity[] = ['critical', 'high', 'medium', 'low', 'info'];
 
@@ -15,6 +15,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
+  const [job, setJob] = useState<Job | null>(null);
 
   useEffect(() => {
     Promise.all([getModules(), getProfiles(), getHealth()])
@@ -37,8 +38,15 @@ export default function App() {
     setResults([]);
     setLoading(true);
     try {
-      const response = await runScan({ target, allow: [allow], execute, profile, timeout: 5 });
-      setResults(response.results);
+      let current = (await createJob({ target, allow: [allow], execute, profile, timeout: 5 })).job;
+      setJob(current);
+      while (current.status === 'queued' || current.status === 'running') {
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+        current = (await getJob(current.id)).job;
+        setJob(current);
+      }
+      if (current.status === 'failed') throw new Error(current.error ?? 'فشل Job');
+      setResults(current.results);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'فشل تشغيل الفحص');
     } finally {
@@ -61,7 +69,7 @@ export default function App() {
           <label>التأكيد في القائمة البيضاء<input value={allow} onChange={(event) => setAllow(event.target.value)} placeholder="يجب أن يطابق الهدف تمامًا" /></label>
           <label>Profile<select value={profile} onChange={(event) => setProfile(event.target.value)}>{profiles.map((item) => <option key={item.name} value={item.name}>{item.name} · {item.module_count} modules</option>)}</select></label>
           <div className="scan-actions"><label className="toggle-row"><input type="checkbox" checked={execute} onChange={(event) => setExecute(event.target.checked)} /><span className="toggle" />السماح بطلبات الشبكة</label><button onClick={startScan} disabled={loading || !target || !allow}>{loading ? 'جارٍ الفحص...' : 'بدء الفحص'}</button></div>
-          <p className="safety-note">{execute ? 'سيتم تنفيذ فحوص محدودة على الهدف المصرّح به فقط.' : 'Dry-run مفعل: لن يتم إرسال أي طلب شبكي.'}</p>
+          <p className="safety-note">{execute ? 'سيتم تنفيذ فحوص محدودة على الهدف المصرّح به فقط.' : 'Dry-run مفعل: لن يتم إرسال أي طلب شبكي.'}</p>{job && loading && <div className="job-progress"><div><span>JOB {job.id.slice(0, 8)}</span><strong>{job.progress}/{job.total || '…'}</strong></div><div className="progress-track"><i style={{ width: `${job.total ? (job.progress / job.total) * 100 : 8}%` }} /></div><small>{job.current_module ?? 'في قائمة الانتظار...'}</small></div>}
           {error && <div className="error-box">{error}</div>}
         </div>
 

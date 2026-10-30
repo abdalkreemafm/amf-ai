@@ -1,6 +1,7 @@
 import json
 from io import StringIO
 import unittest
+import time
 from unittest.mock import patch
 
 from amf.cli import main
@@ -20,6 +21,8 @@ from amf.modules.http_headers import HTTPHeadersModule
 from amf.safety import SafetyError, SafetyPolicy, load_allowlist
 from amf.api import run_scan
 from amf.integrations import ADAPTERS, tool_catalog
+from amf.correlation import correlate_results
+from amf.jobs import JobManager
 
 
 class FrameworkTests(unittest.TestCase):
@@ -76,6 +79,30 @@ class FrameworkTests(unittest.TestCase):
         with patch.object(ADAPTERS["dns"], "run") as adapter_run:
             self.assertEqual(main(["external", "dns", "https://lab.local", "--allow", "https://lab.local"]), 0)
             adapter_run.assert_not_called()
+
+    def test_correlation_deduplicates_same_observation(self):
+        from amf.core import Finding, RunResult
+        results = [
+            RunResult("scanner/a", "https://lab.local", "execute", "now", [Finding("a", "Missing HSTS", "high", "desc", "fix", finding_type="http-header")]),
+            RunResult("scanner/b", "https://lab.local", "execute", "now", [Finding("b", "Missing HSTS", "high", "desc", "fix", finding_type="http-header")]),
+        ]
+        summary = correlate_results(results)
+        self.assertEqual(len(summary.assets), 1)
+        self.assertEqual(len(summary.observations), 1)
+        self.assertEqual(summary.duplicate_groups, 1)
+        self.assertEqual(summary.observations[0].evidence["sources"], ["scanner/a", "scanner/b"])
+
+    def test_job_manager_completes_and_returns_correlation(self):
+        manager = JobManager(max_workers=1)
+        job = manager.create({"target": "https://lab.local", "allow": ["https://lab.local"], "profile": "quick"})
+        for _ in range(50):
+            if job.status in {"completed", "failed", "cancelled"}:
+                break
+            time.sleep(0.01)
+        self.assertEqual(job.status, "completed")
+        self.assertEqual(job.progress, 4)
+        self.assertEqual(len(job.results), 4)
+        self.assertEqual(len(job.correlation.assets), 1)
 
     def test_finding_report_contains_type_severity_and_languages(self):
         from amf.core import Finding, RunResult

@@ -5,5 +5,14 @@
 - [x] لوحة React تعرض الوحدات والـ Profiles وإحصاءات Findings.
 - [x] عرض الدليل والأثر والإصلاح والثقة لكل Finding.
 - [x] منع عرض الأسرار الخام أو تخزينها في المتصفح.
+- [x] Jobs غير متزامنة مع polling والتقدم والإلغاء.
+- [x] نماذج Asset وObservation وCorrelation لإزالة تكرار الأدلة.
+- [x] Endpoint `/api/jobs/<id>/events` وملخص correlation داخل Job.
 - [x] نجاح `python3 -m unittest discover -s tests -v`.
 - [x] نجاح `npm run build`.
+
+## المرحلة التالية
+
+- [ ] إضافة سجل تاريخي اختياري للفحوص ومقارنة تقريرين.
+- [ ] ربط CPE/CVE/CVSS كمطابقة احتمالية تحتاج مراجعة.
+- [ ] إضافة adapters لمصادر CT وDNS إضافية مع حدود أصول واضحة.

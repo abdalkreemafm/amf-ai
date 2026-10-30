@@ -37,6 +37,16 @@ export interface RunResult {
   error: string | null;
 }
 
+export interface Job {
+  id: string;
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  total: number;
+  current_module: string | null;
+  results: RunResult[];
+  error: string | null;
+}
+
 export interface ProfileInfo {
   name: string;
   description: string;

@@ -1,4 +1,4 @@
-import type { ModuleInfo, ProfileInfo, RunResult } from '../types/amf';
+import type { Job, ModuleInfo, ProfileInfo, RunResult } from '../types/amf';
 
 const API_BASE = import.meta.env.VITE_AMF_API ?? '/api';
 
@@ -14,4 +14,8 @@ export function getProfiles() { return request<{ profiles: ProfileInfo[] }>('/pr
 export function runScan(input: { target: string; allow: string[]; execute: boolean; profile: string; timeout: number }) {
   return request<{ results: RunResult[] }>('/scan', { method: 'POST', body: JSON.stringify(input) });
 }
+export function createJob(input: { target: string; allow: string[]; execute: boolean; profile: string; timeout: number }) {
+  return request<{ job: Job }>('/jobs', { method: 'POST', body: JSON.stringify(input) });
+}
+export function getJob(id: string) { return request<{ job: Job }>(`/jobs/${id}`); }
 export function getHealth() { return request<{ ok: boolean; version: string; mode: string }>('/health'); }

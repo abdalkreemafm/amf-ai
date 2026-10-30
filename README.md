@@ -19,6 +19,7 @@
 - فحص CORS والملفات الحساسة وSPF/DMARC.
 - إخراج SARIF وخيار `--fail-on` للتكامل مع CI/CD.
 - كتالوج Adapters اختياري لـ DNS المحلي وOpenSSL وNmap المحدود.
+- Jobs غير متزامنة مع التقدم والإلغاء وCorrelation للأدلة المتكررة.
 
 ## التثبيت
 
@@ -131,6 +132,17 @@ npm run dev
 افتح `http://127.0.0.1:5173`. تستدعي الواجهة API محليًا فقط، ويبقى التحقق من `allowlist` و`dry-run` داخل Python وليس داخل المتصفح.
 
 يوفر API أيضًا `GET /api/tools` لعرض حالة الأدوات الخارجية وإصداراتها للوحة التحكم أو أي عميل محلي آخر.
+
+للفحوص الطويلة استخدم Jobs بدل الطلب المتزامن:
+
+```text
+POST /api/jobs
+GET  /api/jobs/<id>
+GET  /api/jobs/<id>/events
+POST /api/jobs/<id>/cancel
+```
+
+يعيد Job الحالة `queued` أو `running` أو `completed` أو `failed` أو `cancelled`، مع `progress` و`current_module` وملخص `correlation` الذي يربط الأصل بالملاحظات ويزيل التكرار بين الوحدات.
 
 داخل الواجهة:
 
