@@ -21,6 +21,7 @@ from amf.modules.http_headers import HTTPHeadersModule
 from amf.safety import SafetyError, SafetyPolicy, load_allowlist
 from amf.api import run_scan
 from amf.integrations import ADAPTERS, tool_catalog
+from amf.integrations.metasploit_rpc import MetasploitMetadataClient, MetasploitRPCConfig
 from amf.correlation import correlate_results
 from amf.jobs import JobManager
 
@@ -86,6 +87,28 @@ class FrameworkTests(unittest.TestCase):
     def test_api_execute_requires_explicit_confirmation(self):
         with self.assertRaises(SafetyError):
             run_scan({"target": "https://lab.local", "allow": ["https://lab.local"], "profile": "quick", "execute": True})
+
+    def test_metasploit_blocks_non_read_only_methods(self):
+        client = MetasploitMetadataClient(MetasploitRPCConfig("http://127.0.0.1:8081/api/v1/json-rpc", "x" * 16))
+        with self.assertRaises(SafetyError):
+            client.call("module.execute", [])
+
+    def test_metasploit_metadata_client_uses_bearer_and_read_only_method(self):
+        class FakeResponse:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, limit): return b'{"jsonrpc":"2.0","result":[{"fullname":"auxiliary/scanner/http/title"}]}'
+
+        client = MetasploitMetadataClient(MetasploitRPCConfig("http://127.0.0.1:8081/api/v1/json-rpc", "x" * 16))
+        with patch("amf.integrations.metasploit_rpc.urlopen", return_value=FakeResponse()) as mocked:
+            result = client.search("http")
+        self.assertEqual(result[0]["fullname"], "auxiliary/scanner/http/title")
+        request = mocked.call_args.args[0]
+        self.assertEqual(request.get_header("Authorization"), "Bearer " + "x" * 16)
+
+    def test_metasploit_rejects_remote_plain_http_endpoint(self):
+        with self.assertRaises(SafetyError):
+            MetasploitRPCConfig("http://10.0.0.5:8081/api/v1/json-rpc", "x" * 16)
 
     def test_correlation_deduplicates_same_observation(self):
         from amf.core import Finding, RunResult

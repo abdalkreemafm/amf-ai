@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 from . import __version__, modules  # noqa: F401
 from .api_scan import run_scan
 from .correlation import correlate_results
-from .integrations import tool_catalog
+from .integrations import MetasploitMetadataClient, metasploit_status, tool_catalog
 from .jobs import JobManager
 from .core import list_modules
 from .profiles import PROFILES, profile_modules
@@ -58,6 +58,8 @@ class AMFRequestHandler(BaseHTTPRequestHandler):
             self._send(200, {"profiles": [{"name": name, "description": item["description"], "module_count": len(profile_modules(name))} for name, item in PROFILES.items()]})
         elif path == "/api/tools":
             self._send(200, {"tools": tool_catalog()})
+        elif path == "/api/metasploit/status":
+            self._send(200, {"metasploit": metasploit_status()})
         elif path.startswith("/api/jobs/"):
             self._get_job(path)
         else:
@@ -82,6 +84,17 @@ class AMFRequestHandler(BaseHTTPRequestHandler):
                 results = run_scan(payload)
                 self._send(200, {"results": [result.to_dict("both") for result in results], "correlation": correlate_results(results).to_dict()})
                 return
+            if path == "/api/metasploit/search":
+                result = MetasploitMetadataClient().search(str(payload.get("query", "")))
+                self._send(200, {"result": result})
+                return
+            if path in {"/api/metasploit/info", "/api/metasploit/options"}:
+                client = MetasploitMetadataClient()
+                module_type = str(payload.get("module_type", ""))
+                fullname = str(payload.get("fullname", ""))
+                result = client.info(module_type, fullname) if path.endswith("/info") else client.options(module_type, fullname)
+                self._send(200, {"result": result})
+                return
             if path == "/api/jobs":
                 job = JOB_MANAGER.create(payload)
                 self._send(202, {"job": job.to_dict()})
@@ -97,6 +110,8 @@ class AMFRequestHandler(BaseHTTPRequestHandler):
             self._send(404, {"error": "not found"})
         except (SafetyError, KeyError, ValueError, json.JSONDecodeError) as exc:
             self._send(400, {"error": str(exc)})
+        except ConnectionError as exc:
+            self._send(502, {"error": str(exc)})
         except Exception:
             self._send(500, {"error": "internal scan error"})
 

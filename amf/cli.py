@@ -13,7 +13,7 @@ from .reporting import render
 from .safety import SafetyError, SafetyPolicy, load_allowlist, require_authorized_execution
 from .console import start_console
 from . import modules  # noqa: F401 - registers built-in modules
-from .integrations import ADAPTERS, tool_catalog
+from .integrations import ADAPTERS, MetasploitMetadataClient, tool_catalog
 
 SEVERITY_WEIGHTS = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 
@@ -31,6 +31,22 @@ def evaluate_ci_fail_on(results: list[RunResult], threshold: str | None) -> int:
     return 3
 
 
+def run_msf_metadata(args: argparse.Namespace) -> int:
+    try:
+        client = MetasploitMetadataClient()
+        if args.command == "msf-search":
+            result = client.search(args.query)
+        elif args.command == "msf-info":
+            result = client.info(args.module_type, args.fullname)
+        else:
+            result = client.options(args.module_type, args.fullname)
+    except (SafetyError, ConnectionError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="amf", description="AMF defensive security assessment framework")
     parser.add_argument("--version", action="version", version=__version__)
@@ -41,6 +57,14 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--category")
     sub.add_parser("profiles", help="list safe audit profiles")
     sub.add_parser("tools", help="show optional external tool availability")
+    msf_search = sub.add_parser("msf-search", help="search Metasploit module metadata (read-only)")
+    msf_search.add_argument("query", nargs="?", default="")
+    msf_info = sub.add_parser("msf-info", help="read Metasploit module metadata (read-only)")
+    msf_info.add_argument("module_type", choices=("auxiliary", "exploit"))
+    msf_info.add_argument("fullname")
+    msf_options = sub.add_parser("msf-options", help="read Metasploit module options (read-only)")
+    msf_options.add_argument("module_type", choices=("auxiliary", "exploit"))
+    msf_options.add_argument("fullname")
     info = sub.add_parser("info", help="show module information")
     info.add_argument("module")
     check = sub.add_parser("check", help="run one non-exploitative check")
@@ -184,6 +208,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "tools":
         print(json.dumps(tool_catalog(), ensure_ascii=False, indent=2))
         return 0
+    if args.command in {"msf-search", "msf-info", "msf-options"}:
+        return run_msf_metadata(args)
     if args.command == "info":
         try:
             module = get_module(args.module)

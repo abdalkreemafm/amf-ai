@@ -97,6 +97,21 @@ python -m amf external nmap https://lab.local \
 
 يستدعي AMF الأدوات عبر قوائم arguments بدون `shell=True`، ولا يثبت أي أداة تلقائيًا. Nmap محدود إلى أعلى 20 منفذًا مع `--version-light`، ويظل مخصصًا للأهداف التي تملك تصريحًا صريحًا لفحصها. التنفيذ الفعلي يتطلب `--confirm-authorized-use`؛ هذا سجل تأكيد تقني وليس إعفاءً قانونيًا. راجع `USER_RESPONSIBILITY.md` و`THIRD_PARTY_NOTICES.md`.
 
+### Metasploit JSON-RPC: metadata فقط
+
+شغّل خدمة Metasploit JSON-RPC محليًا أو عبر HTTPS مع Bearer Token، ثم عرّف الإعدادات في بيئة AMF. لا تضع الرمز داخل المستودع أو أوامر shell المحفوظة:
+
+```bash
+export AMF_MSF_RPC_URL=http://127.0.0.1:8081/api/v1/json-rpc
+export AMF_MSF_RPC_TOKEN='ضع-رمزًا-عشوائيًا-بطول-16-حرفًا-على-الأقل'
+
+python -m amf msf-search http
+python -m amf msf-info auxiliary auxiliary/scanner/http/title
+python -m amf msf-options auxiliary auxiliary/scanner/http/title
+```
+
+يسمح Adapter بعمليات `core.version` و`module.search` و`module.info` و`module.options` فقط. يحظر AMF تنفيذ الوحدات والجلسات والـ payloads، ويرفض HTTP غير المشفر إذا كان RPC غير مربوط على loopback. تتوفر حالة الاتصال دون كشف الرمز عبر `GET /api/metasploit/status`، بينما تستخدم الواجهة البرمجية `POST /api/metasploit/search` و`/info` و`/options`.
+
 استفدنا من الأفكار المعمارية العامة في Metasploit، مثل Registry والفهرسة وmetadata وProfiles وواجهة `list/info/search/use`. لم تُنسخ وحدات أو Payloads أو موارد تنفيذ هجومية من Metasploit إلى هذا المشروع. يعتمد AMF على تنفيذ أصلي مستقل، وتجب مراجعة ترخيص أي مكوّن خارجي قبل استخدامه.
 
 تظهر الملفات الحساسة في التقرير من حيث النوع والمسار والحجم والدليل التشخيصي، لكن محتوى المفاتيح وكلمات المرور والرموز السرية يُحجب دائمًا ولا يُكتب خامًا في التقرير أو السجل.
