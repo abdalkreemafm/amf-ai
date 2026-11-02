@@ -14,7 +14,10 @@ class OpenSSLTLSAdapter(ToolAdapter):
         parsed = urlparse(target)
         if parsed.scheme != "https" or not parsed.hostname:
             return [Finding("tool/openssl", "OpenSSL adapter requires HTTPS", "info", target, "Use an HTTPS target for TLS inspection.", finding_type="input-validation")]
-        port = parsed.port or 443
+        try:
+            port = parsed.port or 443
+        except ValueError:
+            return [Finding("tool/openssl", "Invalid HTTPS port", "info", target, "Use a numeric TCP port between 1 and 65535.", finding_type="input-validation")]
         try:
             result = run_command("openssl", ["s_client", "-connect", f"{parsed.hostname}:{port}", "-servername", parsed.hostname, "-brief", "-no_ticket"], timeout=timeout)
         except FileNotFoundError as exc:

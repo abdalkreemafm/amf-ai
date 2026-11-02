@@ -50,17 +50,27 @@ class JobManager:
             return self._jobs.get(job_id)
 
     def cancel(self, job_id: str) -> Job | None:
-        job = self.get(job_id)
-        if not job:
-            return None
-        job.cancel_event.set()
-        if job.status == "queued":
-            job.status = "cancelled"
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return None
+            job.cancel_event.set()
+            if job.status == "queued":
+                if job.future is not None and job.future.cancel():
+                    job.status = "cancelled"
+                    job.finished_at = utc_now()
+                else:
+                    job.status = "cancelled"
         return job
 
     def _run(self, job: Job) -> None:
-        job.status = "running"
-        job.started_at = utc_now()
+        with self._lock:
+            if job.cancel_event.is_set() or job.status == "cancelled":
+                job.status = "cancelled"
+                job.finished_at = job.finished_at or utc_now()
+                return
+            job.status = "running"
+            job.started_at = utc_now()
         try:
             total = len(_profile_names(job.payload))
             job.total = total

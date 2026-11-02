@@ -2,6 +2,7 @@ import json
 from io import StringIO
 import unittest
 import time
+import threading
 from unittest.mock import patch
 
 from amf.cli import main
@@ -24,6 +25,8 @@ from amf.integrations import ADAPTERS, tool_catalog
 from amf.integrations.metasploit_rpc import MetasploitMetadataClient, MetasploitRPCConfig
 from amf.correlation import correlate_results
 from amf.jobs import JobManager
+from amf.integrations.dns_local import LocalDNSAdapter
+from amf.integrations.openssl_tls import OpenSSLTLSAdapter
 
 
 class FrameworkTests(unittest.TestCase):
@@ -133,6 +136,51 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual(job.progress, 4)
         self.assertEqual(len(job.results), 4)
         self.assertEqual(len(job.correlation.assets), 1)
+
+    def test_queued_job_cancellation_prevents_worker_execution(self):
+        manager = JobManager(max_workers=1)
+        blocker_started = threading.Event()
+        release_blocker = threading.Event()
+
+        def blocker():
+            blocker_started.set()
+            release_blocker.wait(1)
+
+        manager._executor.submit(blocker)
+        self.assertTrue(blocker_started.wait(1))
+        with patch("amf.jobs.run_scan") as run_scan:
+            job = manager.create({"target": "https://lab.local", "allow": ["https://lab.local"], "profile": "quick"})
+            self.assertEqual(manager.cancel(job.id).status, "cancelled")
+            release_blocker.set()
+            for _ in range(50):
+                if job.finished_at:
+                    break
+                time.sleep(0.01)
+            self.assertEqual(job.status, "cancelled")
+            run_scan.assert_not_called()
+
+    def test_dns_adapter_returns_timeout_finding_when_resolver_hangs(self):
+        resolver_started = threading.Event()
+        release_resolver = threading.Event()
+
+        def hanging_resolver(*_args, **_kwargs):
+            resolver_started.set()
+            release_resolver.wait(1)
+            return []
+
+        with patch("amf.integrations.dns_local.socket.getaddrinfo", side_effect=hanging_resolver):
+            result = []
+            worker = threading.Thread(target=lambda: result.extend(LocalDNSAdapter().run("https://lab.local", timeout=0.01)), daemon=True)
+            worker.start()
+            self.assertTrue(resolver_started.wait(1))
+            worker.join(0.2)
+            release_resolver.set()
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(result[0].finding_type, "tool-timeout")
+
+    def test_openssl_adapter_reports_invalid_port_as_input_validation(self):
+        findings = OpenSSLTLSAdapter().run("https://lab.local:bad", timeout=1)
+        self.assertEqual(findings[0].finding_type, "input-validation")
 
     def test_finding_report_contains_type_severity_and_languages(self):
         from amf.core import Finding, RunResult
