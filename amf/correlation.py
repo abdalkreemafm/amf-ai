@@ -5,6 +5,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from .core import RunResult, utc_now
+from .intel.models import Advisory
 
 
 @dataclass(frozen=True)
@@ -76,3 +77,40 @@ def correlate_results(results: list[RunResult]) -> CorrelationSummary:
         sources = sorted(source_sets[key])
         observations.append(Observation(observation.asset, ",".join(sources), observation.kind, observation.value, observation.confidence, observation.observed_at, {**observation.evidence, "sources": sources}))
     return CorrelationSummary(list(assets_by_id.values()), observations, duplicates)
+
+
+def correlate_intel(asset: str, advisories: list[Advisory]) -> CorrelationSummary:
+    """Attach external advisories to one asset without treating them as confirmed findings."""
+    asset_item = Asset(asset, _asset_kind(asset), "high", ("nvd",), utc_now())
+    observations: list[Observation] = []
+    seen: set[str] = set()
+    for advisory in advisories:
+        if advisory.cve_id in seen:
+            continue
+        seen.add(advisory.cve_id)
+        confidence = "medium" if advisory.product_matches else "low"
+        matching_reason = advisory.product_matches[0].matching_reason if advisory.product_matches else "No explicit CPE match was supplied"
+        observations.append(Observation(
+            asset,
+            advisory.evidence.source,
+            "potential-match",
+            advisory.cve_id,
+            confidence,
+            advisory.evidence.retrieved_at,
+            {
+                "source": advisory.evidence.source,
+                "source_id": advisory.evidence.source_id,
+                "source_url": advisory.evidence.source_url,
+                "license": advisory.evidence.license,
+                "retrieved_at": advisory.evidence.retrieved_at,
+                "raw_hash": advisory.evidence.raw_hash,
+                "summary": advisory.summary,
+                "severity": advisory.severity,
+                "cvss_score": advisory.cvss_score,
+                "references": list(advisory.references),
+                "cpe_matches": [item.to_dict() for item in advisory.product_matches],
+                "matching_reason": matching_reason,
+                "review_status": "needs-review",
+            },
+        ))
+    return CorrelationSummary([asset_item], observations, len(advisories) - len(observations))

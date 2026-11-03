@@ -7,7 +7,8 @@ from urllib.parse import urlsplit
 
 from . import __version__, modules  # noqa: F401
 from .api_scan import run_scan
-from .correlation import correlate_results
+from .correlation import correlate_intel, correlate_results
+from .intel.nvd_provider import NVDProvider, NVDProviderError
 from .integrations import MetasploitMetadataClient, metasploit_status, tool_catalog
 from .jobs import JobManager
 from .core import list_modules
@@ -15,6 +16,21 @@ from .profiles import PROFILES, profile_modules
 from .safety import SafetyError
 
 JOB_MANAGER = JobManager()
+
+
+def lookup_nvd(payload: dict[str, Any], provider: NVDProvider | None = None) -> dict[str, Any]:
+    asset = payload.get("asset")
+    cve_id = payload.get("cve_id")
+    cpe_name = payload.get("cpe_name")
+    if not isinstance(asset, str) or not asset:
+        raise ValueError("asset is required")
+    if not ((isinstance(cve_id, str) and cve_id.strip()) or (isinstance(cpe_name, str) and cpe_name.strip())):
+        raise ValueError("cve_id or cpe_name is required")
+    advisories = (provider or NVDProvider()).fetch(
+        cve_id=cve_id if isinstance(cve_id, str) and cve_id else None,
+        cpe_name=cpe_name if isinstance(cpe_name, str) and cpe_name else None,
+    )
+    return {"advisories": [item.to_dict() for item in advisories], "correlation": correlate_intel(asset, advisories).to_dict(), "notice": NVDProvider.NVD_NOTICE}
 
 
 class AMFRequestHandler(BaseHTTPRequestHandler):
@@ -84,6 +100,9 @@ class AMFRequestHandler(BaseHTTPRequestHandler):
                 results = run_scan(payload)
                 self._send(200, {"results": [result.to_dict("both") for result in results], "correlation": correlate_results(results).to_dict()})
                 return
+            if path == "/api/intel/nvd":
+                self._send(200, lookup_nvd(payload))
+                return
             if path == "/api/metasploit/search":
                 result = MetasploitMetadataClient().search(str(payload.get("query", "")))
                 self._send(200, {"result": result})
@@ -111,6 +130,8 @@ class AMFRequestHandler(BaseHTTPRequestHandler):
         except (SafetyError, KeyError, ValueError, json.JSONDecodeError) as exc:
             self._send(400, {"error": str(exc)})
         except ConnectionError as exc:
+            self._send(502, {"error": str(exc)})
+        except NVDProviderError as exc:
             self._send(502, {"error": str(exc)})
         except Exception:
             self._send(500, {"error": "internal scan error"})

@@ -4,7 +4,10 @@ import unittest
 from datetime import datetime, timezone
 
 from amf.intel.cache import IntelCache
+from amf.intel.models import Advisory, IntelEvidence, ProductMatch
 from amf.intel.nvd_provider import NVDProvider, NVDProviderError
+from amf.correlation import correlate_intel
+from amf.api import lookup_nvd
 
 
 class FakeResponse:
@@ -90,6 +93,38 @@ class NVDProviderTests(unittest.TestCase):
         self.assertIn("lastModStartDate=2024-02-01T00%3A00%3A00Z", self.requests[0][0])
         self.assertIn("lastModEndDate=2024-02-02T00%3A00%3A00Z", self.requests[0][0])
         self.assertEqual(self.cache.get_cursor("nvd"), "2024-02-02T00:00:00Z")
+
+    def test_correlation_exposes_nvd_match_as_potential_review(self):
+        advisory = Advisory(
+            "CVE-2024-0004", "Example issue", "high", 8.8,
+            references=("https://nvd.nist.gov/vuln/detail/CVE-2024-0004",),
+            product_matches=(ProductMatch("cpe:2.3:a:acme:widget:1.2:*:*:*:*:*:*:*", "medium", "CPE criteria supplied by NVD"),),
+            evidence=IntelEvidence("nvd", "CVE-2024-0004", "2024-02-01T00:00:00Z", "https://services.nvd.nist.gov/rest/json/cves/2.0", "NVD API/data feeds", "medium", "abc"),
+        )
+        summary = correlate_intel("https://lab.local", [advisory])
+        self.assertEqual(summary.observations[0].kind, "potential-match")
+        self.assertEqual(summary.observations[0].confidence, "medium")
+        self.assertEqual(summary.observations[0].evidence["source"], "nvd")
+        self.assertEqual(summary.observations[0].evidence["matching_reason"], "CPE criteria supplied by NVD")
+
+    def test_api_lookup_returns_advisories_and_correlation(self):
+        advisory = Advisory(
+            "CVE-2024-0005", "API issue", "medium", 6.5,
+            evidence=IntelEvidence("nvd", "CVE-2024-0005", "2024-02-01T00:00:00Z", "https://nvd.nist.gov", "NVD API/data feeds", "low", "hash"),
+        )
+
+        class Provider:
+            def fetch(self, **kwargs):
+                self.kwargs = kwargs
+                return [advisory]
+
+        response = lookup_nvd({"asset": "https://lab.local", "cve_id": "CVE-2024-0005"}, provider=Provider())
+        self.assertEqual(response["advisories"][0]["cve_id"], "CVE-2024-0005")
+        self.assertEqual(response["correlation"]["observations"][0]["kind"], "potential-match")
+
+    def test_api_lookup_rejects_empty_intel_query(self):
+        with self.assertRaises(ValueError):
+            lookup_nvd({"asset": "https://lab.local", "cve_id": ""}, provider=self.provider([]))
 
 
 if __name__ == "__main__":

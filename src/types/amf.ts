@@ -52,3 +52,31 @@ export interface ProfileInfo {
   description: string;
   module_count: number;
 }
+
+export interface IntelObservation {
+  asset: string;
+  source: string;
+  kind: 'potential-match' | 'reference-only' | 'needs-review';
+  value: string;
+  confidence: string;
+  observed_at: string;
+  evidence: Record<string, unknown>;
+}
+
+export interface NVDAdvisory {
+  cve_id: string;
+  summary: string;
+  severity: string;
+  cvss_score: number | null;
+  published_at?: string | null;
+  modified_at?: string | null;
+  references: string[];
+  product_matches: Array<{ cpe_name: string; confidence: string; matching_reason: string; vulnerable: boolean }>;
+  evidence: { source: string; retrieved_at: string; source_url: string; [key: string]: unknown };
+}
+
+export interface NVDLookupResponse {
+  advisories: NVDAdvisory[];
+  correlation: { assets: Array<Record<string, unknown>>; observations: IntelObservation[]; duplicate_groups: number };
+  notice: string;
+}

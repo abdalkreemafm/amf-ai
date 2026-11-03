@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createJob, getHealth, getJob, getModules, getProfiles } from './services/api';
-import type { Finding, Job, ModuleInfo, ProfileInfo, RunResult, Severity } from './types/amf';
+import { createJob, getHealth, getJob, getModules, getProfiles, lookupNvd } from './services/api';
+import type { Finding, Job, ModuleInfo, NVDLookupResponse, ProfileInfo, RunResult, Severity } from './types/amf';
 
 const severityOrder: Severity[] = ['critical', 'high', 'medium', 'low', 'info'];
 
@@ -17,6 +17,10 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
   const [job, setJob] = useState<Job | null>(null);
+  const [nvdQuery, setNvdQuery] = useState('');
+  const [nvdLoading, setNvdLoading] = useState(false);
+  const [nvdError, setNvdError] = useState('');
+  const [nvdData, setNvdData] = useState<NVDLookupResponse | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setLoadingInitial(true);
@@ -63,6 +67,21 @@ export default function App() {
     }
   }
 
+  async function searchNvd() {
+    setNvdError('');
+    setNvdData(null);
+    setNvdLoading(true);
+    try {
+      const isCve = /^CVE-\d{4}-\d+$/i.test(nvdQuery.trim());
+      const result = await lookupNvd({ asset: target, ...(isCve ? { cve_id: nvdQuery.trim() } : { cpe_name: nvdQuery.trim() }) });
+      setNvdData(result);
+    } catch (reason) {
+      setNvdError(reason instanceof Error ? reason.message : 'تعذر جلب بيانات NVD');
+    } finally {
+      setNvdLoading(false);
+    }
+  }
+
   return <div className="app-shell">
     <header className="topbar">
       <div className="brand-lockup"><div className="brand-mark" aria-hidden="true">A</div><div><p className="eyebrow">DEFENSIVE SECURITY ENGINE</p><h1>AMF <span>Control Room</span></h1></div></div>
@@ -92,6 +111,7 @@ export default function App() {
       <section className="panel modules-panel"><div className="panel-heading"><div><p className="eyebrow">MODULE CATALOG</p><h3>الوحدات المتاحة</h3></div><span className="muted">{modules.length} registered modules</span></div><div className="module-grid">{modules.map((module) => <article className="module-card" key={module.name}><div className="module-top"><span className="module-icon" aria-hidden="true">◈</span><span className="risk-pill">{module.risk}</span></div><h4>{module.name}</h4><p>{module.description}</p><div className="tag-row">{module.tags.slice(0, 3).map((tag) => <span key={tag}>#{tag}</span>)}</div></article>)}</div></section>
 
       <section className="panel results-panel"><div className="panel-heading"><div><p className="eyebrow">FINDINGS / الاكتشافات</p><h3>النتائج مع الدليل والإصلاح</h3></div><span className="muted">{findings.length} findings</span></div>{findings.length === 0 ? <div className="empty-state"><div className="empty-icon" aria-hidden="true">⌁</div><h4>لا توجد نتائج بعد</h4><p>ابدأ Dry-run لمراجعة الوحدات أو فعّل التنفيذ على هدف مصرّح به.</p></div> : <div className="finding-list">{findings.map((finding, index) => <FindingCard key={`${finding.module}-${index}`} finding={finding} />)}</div>}</section>
+      <section className="panel intel-panel"><div className="panel-heading"><div><p className="eyebrow">EXTERNAL INTELLIGENCE / NVD</p><h3>مطابقة CVE/CPE تحتاج مراجعة</h3></div><span className="muted">read-only enrichment</span></div><form className="intel-form" onSubmit={(event) => { event.preventDefault(); void searchNvd(); }}><label htmlFor="nvd-query">بحث NVD<input id="nvd-query" value={nvdQuery} onChange={(event) => setNvdQuery(event.target.value)} placeholder="CVE-2024-0001 أو cpe:2.3:a:..." /></label><button type="submit" aria-busy={nvdLoading} disabled={nvdLoading || !target || !nvdQuery.trim()}>{nvdLoading ? 'جارٍ البحث...' : 'بحث في NVD'}</button></form>{nvdError && <div className="error-box" role="alert">{nvdError}</div>}{nvdData && <div className="intel-results" aria-live="polite"><p className="nvd-notice">{nvdData.notice}</p>{nvdData.correlation.observations.length === 0 ? <p className="muted">لم توجد مطابقة في NVD لهذا الاستعلام.</p> : nvdData.correlation.observations.map((observation) => <article className="intel-card" key={observation.value}><div className="intel-card-header"><strong>{observation.value}</strong><span className="risk-pill">potential match / يحتاج مراجعة</span></div><p>{String(observation.evidence.summary ?? '')}</p><div className="intel-meta"><span>CONFIDENCE: {observation.confidence}</span><span>SOURCE: {observation.source}</span><span>RETRIEVED: {observation.observed_at}</span></div><p className="matching-reason">{String(observation.evidence.matching_reason ?? '')}</p>{typeof observation.evidence.source_url === 'string' && <a href={observation.evidence.source_url} target="_blank" rel="noreferrer">فتح مصدر NVD</a>}</article>)}</div>}</section>
     </main>
   </div>;
 }

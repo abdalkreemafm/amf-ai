@@ -1,4 +1,4 @@
-import type { Job, ModuleInfo, ProfileInfo, RunResult } from '../types/amf';
+import type { Job, ModuleInfo, NVDLookupResponse, ProfileInfo, RunResult } from '../types/amf';
 
 const API_BASE = import.meta.env.VITE_AMF_API ?? '/api';
 
@@ -19,3 +19,6 @@ export function createJob(input: { target: string; allow: string[]; execute: boo
 }
 export function getJob(id: string) { return request<{ job: Job }>(`/jobs/${id}`); }
 export function getHealth() { return request<{ ok: boolean; version: string; mode: string }>('/health'); }
+export function lookupNvd(input: { asset: string; cve_id?: string; cpe_name?: string }) {
+  return request<NVDLookupResponse>('/intel/nvd', { method: 'POST', body: JSON.stringify(input) });
+}
